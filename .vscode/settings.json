@@ -2,6 +2,7 @@
     "files.associations": {
         "layers.h": "c",
         "sdl.h": "c",
-        "stdint.h": "c"
+        "stdint.h": "c",
+        "sdl_image.h": "c"
     }
 }
