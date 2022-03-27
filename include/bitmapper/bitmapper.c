@@ -1,14 +1,17 @@
+#define STB_IMAGE_IMPLEMENTATION
+
 #include "bitmapper.h"
 
 //Window functions
 
-int bm_init_window(int x, int y, int width, int height, COLOR clearcolor , const char* title, WINDOW* window)
+WINDOW* bm_init_window(int x, int y, int width, int height, COLOR clearcolor , const char* title)
 {
+    WINDOW* window = malloc(sizeof(WINDOW));
     window->quit = 0;
     window->numlayers = 1;
     window->width = width;
     window->height = height;
-    window->layers = (LAYER*)malloc(sizeof(LAYER));
+    window->layers = (LAYER*)calloc(1,sizeof(LAYER));
     window->keys = calloc(550,sizeof(uint8_t));
 
     int rendererflags = SDL_RENDERER_ACCELERATED;
@@ -18,40 +21,46 @@ int bm_init_window(int x, int y, int width, int height, COLOR clearcolor , const
     error = SDL_Init(SDL_INIT_VIDEO);
 
     if(error < 0){
-        return error;
+        return NULL;
     }
 
     window->window = SDL_CreateWindow(title,x,y,width,height,windowflags);
 
     if(!window->window)
     {
-        return -1;
+        return NULL;
     }
     error = SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "nearest");
 
     if(error != 1){
-        return -3;
+        return NULL;
     }
 
     window->renderer = SDL_CreateRenderer(window->window,-1,rendererflags);
 
-    SDL_SetRenderDrawColor(window->renderer,clearcolor.r,clearcolor.g,clearcolor.b,255);
+    SDL_SetRenderDrawColor(window->renderer,clearcolor.r,clearcolor.g,clearcolor.b,clearcolor.a);
+    SDL_SetRenderDrawBlendMode(window->renderer, SDL_BLENDMODE_BLEND);
 
     if(!window->renderer)
     {
-        return -2;
+        return NULL;
     }
 
-    return 0;
+    return window;
 }
 
 int bm_cleanup_window(WINDOW* window)
 {
     printf("cleaning up\n");
+    for(int x = 0; x < window->numlayers; x++)
+    {
+        bm_remove_layer(&(window->layers[x]));
+    }
     free(window->layers);
     free(window->keys);
     SDL_DestroyRenderer(window->renderer);
     SDL_DestroyWindow(window->window);
+    free(window);
 }
 
 int bm_process_window(WINDOW* window)
@@ -98,7 +107,12 @@ void bm_render_window(WINDOW* window)
     }
 }
 
-void bm_window_clear(WINDOW* window)
+uint8_t bm_open_window(WINDOW* window)
+{
+    return !window->quit;
+}
+
+void bm_clear_window(WINDOW* window)
 {
     SDL_RenderClear(window->renderer);
 }
@@ -114,19 +128,39 @@ LAYER* bm_add_layer(int x, int y,int w, int h, FONT* font, WINDOW* window)
 {   
     window->numlayers += 1;
     window->layers = realloc(window->layers,sizeof(LAYER) * window->numlayers);
-    window->layers[window->numlayers-1] = (LAYER){ font,x,y,w,h };
+    window->layers[window->numlayers-1] = (LAYER){ font, (COLOR){255,255,255,255},x,y,w,h };
     window->layers[window->numlayers-1].chars = calloc(w*h,sizeof(BMCHAR));
-
+    window->layers[window->numlayers-1].texture = SDL_CreateTexture(window->renderer,SDL_PIXELFORMAT_RGBA8888,SDL_TEXTUREACCESS_TARGET,w*window->layers[window->numlayers-1].font->cw,h*window->layers[window->numlayers-1].font->ch);
+    SDL_SetTextureBlendMode(window->layers[window->numlayers-1].texture, SDL_BLENDMODE_BLEND);
     return &(window->layers[window->numlayers-1]);
 }
 
-void bm_clear_layer(LAYER* layer)
+void bm_remove_layer(LAYER* layer)
 {
-    memset(layer->chars,0,sizeof(BMCHAR)*layer->w*layer->h);
+    SDL_DestroyTexture(layer->texture);
+    free(layer->chars);
 }
 
-void bm_render_layer(LAYER* layer,WINDOW* window)
+void bm_tint_layer(COLOR color, LAYER* layer,WINDOW* window)
 {
+    layer->color = color;
+    SDL_SetTextureColorMod(layer->texture,color.r,color.g,color.b);
+    bm_update_layer(layer,window);
+}
+
+void bm_clear_layer(LAYER* layer,WINDOW* window)
+{
+    memset(layer->chars,0,sizeof(BMCHAR)*layer->w*layer->h);
+    bm_update_layer(layer,window);
+}
+
+void bm_update_layer(LAYER* layer,WINDOW* window)
+{
+    SDL_SetRenderTarget(window->renderer,layer->texture);
+    COLOR color;
+    SDL_GetRenderDrawColor(window->renderer,&color.r,&color.g,&color.b,&color.a);
+    SDL_SetRenderDrawColor(window->renderer,color.r,color.g,color.b,0);
+    SDL_RenderClear(window->renderer);
     const int w = layer->w;
     const int h = layer->h;
 
@@ -138,41 +172,85 @@ void bm_render_layer(LAYER* layer,WINDOW* window)
         SDL_Rect rect;
         SDL_Rect dstRect;
         rect = bmc.rect;
-        dstRect = (SDL_Rect){(x*layer->font->cw)+layer->x,(y*layer->font->ch)+layer->y,layer->font->cw,layer->font->ch};
+        dstRect = (SDL_Rect){(x*layer->font->cw),(y*layer->font->ch),layer->font->cw,layer->font->ch};
         SDL_RenderCopy(window->renderer,layer->font->image,&rect,&dstRect);
     }
+
+    SDL_SetRenderTarget(window->renderer,NULL);
+    SDL_SetRenderDrawColor(window->renderer,color.r,color.g,color.b,color.a);
+}
+
+void bm_render_layer(LAYER* layer,WINDOW* window)
+{
+    int w,h;
+    SDL_QueryTexture(layer->texture,NULL,NULL,&w,&h);
+    SDL_RenderCopy(window->renderer,layer->texture,NULL,&(SDL_Rect){layer->x,layer->y,w,h});
 }
 
 //Font functions
-FONT bm_load_font(int w, int h, const char* layout, const char* filepath, WINDOW* window)
+FONT* bm_load_font(int w, int h, const char* layout, const char* filepath, WINDOW* window)
 {
-    FONT font = (FONT){w,h,(char*)layout};
-    font.chars = NULL;
-    SDL_Surface* imagesurface = SDL_LoadBMP(filepath);
-    font.image = SDL_CreateTextureFromSurface(window->renderer, imagesurface);
+    //couldn't get SDL_Image to work lmao
+    int req_format = STBI_rgb_alpha;
+    int width, height, orig_format;
+    unsigned char* data = stbi_load(filepath,&width,&height,&orig_format,req_format);
+
+    if(data == NULL)
+    {
+        return NULL;
+    }
+
+    int depth, pitch;
+    uint32_t pixelformat;
+    if(req_format == STBI_rgb)
+    {
+        depth = 24;
+        pitch = 3*width;
+        pixelformat = SDL_PIXELFORMAT_RGB24;
+    }
+    else
+    {
+        depth = 32;
+        pitch = 4*width;
+        pixelformat = SDL_PIXELFORMAT_RGBA32;
+    }
+
+    SDL_Surface* imagesurface = SDL_CreateRGBSurfaceWithFormatFrom((void*)data,width,height,depth,pitch,pixelformat);
+
+    if(imagesurface == NULL)
+    {
+        return NULL;
+    }
+
+    FONT* font = calloc(1,sizeof(FONT));
+    *font = (FONT){w,h,(char*)layout};
+    font->chars = NULL;
+    font->image = SDL_CreateTextureFromSurface(window->renderer, imagesurface);
+    SDL_SetTextureBlendMode(font->image,SDL_BLENDMODE_BLEND);
     SDL_FreeSurface(imagesurface);
+    stbi_image_free(data);
 
     int charsinfont = strlen(layout);
     int texw, texh;
-    SDL_QueryTexture(font.image,NULL,NULL,&texw,&texh);
+    SDL_QueryTexture(font->image,NULL,NULL,&texw,&texh);
 
     int x = 0,y = 0;
     for(int currentchar = 0; currentchar < charsinfont; currentchar+=1)
     {
         BMCHAR* bmrep; 
         bmrep = (BMCHAR*)malloc(sizeof(BMCHAR));
-        bmrep->associate = font.charassociation[currentchar];
-        bmrep->rect = (SDL_Rect){x,y,font.cw,font.ch};
-        HASH_ADD(hh,font.chars,associate,sizeof(char),bmrep);
+        bmrep->associate = font->charassociation[currentchar];
+        bmrep->rect = (SDL_Rect){x,y,font->cw,font->ch};
+        HASH_ADD(hh,font->chars,associate,sizeof(char),bmrep);
 
-        if(x < texw - font.cw)
+        if(x < texw - font->cw)
         {
-            x += font.cw;
+            x += font->cw;
         }
         else
         {
             x = 0;
-            y += font.ch;
+            y += font->ch;
         }
     }
     return font;
@@ -208,4 +286,5 @@ void bm_print(char* s,int x, int y,LAYER* layer, WINDOW* window)
     {
         bm_putchar(s[z],x+z,y,layer,window);
     }
+    bm_update_layer(layer,window);
 }

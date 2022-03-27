@@ -1,9 +1,11 @@
 #ifndef BM_MAIN_H
 #define BM_MAIN_H
 
+#define SDL_MAIN_HANDLED
+
 #include <stdint.h>
 #include <SDL2/SDL.h>
-#include <SDL2/SDL_image.h>
+#include "stb/stb_image.h"
 
 #include "layouts.h"
 #include "scancodes.h"
@@ -13,7 +15,7 @@
 //structs & enums
 
 typedef struct _color{
-    uint8_t r,g,b;
+    uint8_t r,g,b,a;
 } COLOR;
 
 typedef struct _bitmap_char{
@@ -31,9 +33,11 @@ typedef struct _font{
 
 typedef struct _layer{
     FONT *font;
+    COLOR color;
     int x,y; //x and y offset in chars
     int w,h; // width and height in chars
     BMCHAR* chars; // array of all the characters in the layer
+    SDL_Texture* texture;
 } LAYER;
 
 typedef struct _bmpfontlib_window{
@@ -48,7 +52,7 @@ typedef struct _bmpfontlib_window{
 
 //Window functions
 
-int bm_init_window(int x, int y, int width, int height, COLOR clearcolor , const char* title, WINDOW* window);
+WINDOW* bm_init_window(int x, int y, int width, int height, COLOR clearcolor , const char* title);
 
 int bm_cleanup_window(WINDOW* window);
 
@@ -56,7 +60,9 @@ int bm_process_window(WINDOW* window);
 
 void bm_render_window(WINDOW* window);
 
-void bm_window_clear(WINDOW* window);
+void bm_clear_window(WINDOW* window);
+
+uint8_t bm_open_window(WINDOW* window);
 
 int bm_getkey(KEY key, WINDOW* window);
 
@@ -64,12 +70,18 @@ int bm_getkey(KEY key, WINDOW* window);
 
 LAYER* bm_add_layer(int x, int y,int w, int h, FONT* font, WINDOW* window);
 
-void bm_clear_layer(LAYER* layer);
+void bm_remove_layer(LAYER* layer);
+
+void bm_tint_layer(COLOR color, LAYER* layer,WINDOW* window);
+
+void bm_update_layer(LAYER* layer,WINDOW* window);
+
+void bm_clear_layer(LAYER* layer,WINDOW* window);
 
 void bm_render_layer(LAYER* layer,WINDOW* window);
 
 //Font functions
-FONT bm_load_font(int w, int h, const char* layout, const char* filepath, WINDOW* window);
+FONT* bm_load_font(int w, int h, const char* layout, const char* filepath, WINDOW* window);
 
 void bm_destroy_font(FONT* font);
 

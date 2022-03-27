@@ -1,0 +1,5 @@
+test/fonts
+test/*.dll
+test/*.exe
+build
+.vscode

@@ -1,4 +1,3 @@
-
 #include <stdint.h>
 #include <stdio.h>
 
@@ -9,20 +8,20 @@
 int main(int argc, char* argv[])
 {
 
-    WINDOW window;
+    WINDOW* window;
 
     printf("started\n");
 
-    printf("%i\n",bm_init_window(200,200,640,480,(COLOR){0,0,0},"test window",&window));
+    window = bm_init_window(200,200,640,480,(COLOR){0,0,0},"test window");
     printf("window created\n");
     
-    FONT* testfont = bm_load_font(32,32,BM_LAYOUT_DEFAULT, "./Fonts/32X32-FD.png", &window);
+    FONT* testfont = bm_load_font(32,32,BM_LAYOUT_DEFAULT, "./Fonts/32X32-FD.png", window);
     if(testfont == NULL)
     {
         printf("testfont not loaded correctly\n");
     }
 
-    FONT* funnyfont = bm_load_font(32,32,BM_LAYOUT_DEFAULT,"./Fonts/32X32-FG.png", &window);
+    FONT* funnyfont = bm_load_font(32,32,BM_LAYOUT_DEFAULT,"./Fonts/32X32-FG.png", window);
     if(funnyfont == NULL)
     {
         printf("testfont not loaded correctly\n");
@@ -30,12 +29,12 @@ int main(int argc, char* argv[])
 
     printf("font loading done\n");
 
-    LAYER* testlayer = bm_add_layer(0,0,50,50,testfont,&window);
+    LAYER* testlayer = bm_add_layer(0,0,20,20,testfont,window);
     if(testlayer == NULL)
     {
         printf("testlayer null\n");
     }
-    LAYER* funnylayer = bm_add_layer(0,0,20,20,funnyfont,&window);
+    LAYER* funnylayer = bm_add_layer(0,0,20,20,funnyfont,window);
     if(testlayer == NULL)
     {
         printf("funnylayer null\n");
@@ -43,74 +42,67 @@ int main(int argc, char* argv[])
 
     printf("added layers\n");
 
-    bm_print("HELLO",1,1,testlayer,&window);
+    bm_print("HELLO",1,1,testlayer,window);
+    bm_print("WORLD",3,3,funnylayer,window);
 
-    printf("printed to layer\n");
 
 
-    while(!window.quit)
+    while(bm_open_window(window))
     {
-        bm_process_window(&window);
-        bm_window_clear(&window);
+        bm_process_window(window);
+        bm_clear_window(window);
 
-        if(bm_getkey(BM_KEY_LEFT,&window))
+        if(bm_getkey(BM_KEY_LEFT,window))
         {
             testlayer->x -= 5;
         }
-        if(bm_getkey(BM_KEY_RIGHT,&window))
+        if(bm_getkey(BM_KEY_RIGHT,window))
         {
             testlayer->x += 5;
         }
-        if(bm_getkey(BM_KEY_UP,&window))
+        if(bm_getkey(BM_KEY_UP,window))
         {
             testlayer->y -= 5;
         }
-        if(bm_getkey(BM_KEY_DOWN,&window))
+        if(bm_getkey(BM_KEY_DOWN,window))
         {
             testlayer->y += 5;
         }
 
-        if(bm_getkey(BM_KEY_A,&window))
+        if(bm_getkey(BM_KEY_A,window))
         {
             funnylayer->x -= 5;
         }
-        if(bm_getkey(BM_KEY_D,&window))
+        if(bm_getkey(BM_KEY_D,window))
         {
             funnylayer->x += 5;
         }
-        if(bm_getkey(BM_KEY_W,&window))
+        if(bm_getkey(BM_KEY_W,window))
         {
             funnylayer->y -= 5;
         }
-        if(bm_getkey(BM_KEY_S,&window))
+        if(bm_getkey(BM_KEY_S,window))
         {
             funnylayer->y += 5;
         }
 
-        if(bm_getkey(BM_KEY_RETURN,&window))
+        if(bm_getkey(BM_KEY_TAB,window))
         {
-            funnylayer->x = 0;
-            funnylayer->y = 0;
-            bm_print("WORLD",3,3,funnylayer,&window);
+            bm_tint_layer((COLOR){255,0,0,255},testlayer,window);
         }
 
-        if(bm_getkey(BM_KEY_TAB,&window))
+        if(bm_getkey(BM_KEY_LSHIFT,window))
         {
-            bm_tint_layer((COLOR){255,0,0,255},testlayer,&window);
-        }
-
-        if(bm_getkey(BM_KEY_LSHIFT,&window))
-        {
-            bm_tint_layer((COLOR){255,255,255,255},testlayer,&window);
+            bm_tint_layer((COLOR){255,255,255,255},testlayer,window);
         }
         
-        bm_render_window(&window);
+        bm_render_window(window);
     }
 
     printf("loop ended\n");
     bm_destroy_font(testfont);
     bm_destroy_font(funnyfont);
-    bm_cleanup_window(&window);
+    bm_cleanup_window(window);
 
     return 0;
 }
