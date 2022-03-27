@@ -3,6 +3,8 @@
         "layers.h": "c",
         "sdl.h": "c",
         "stdint.h": "c",
-        "sdl_image.h": "c"
+        "sdl_image.h": "c",
+        "layouts.h": "c",
+        "bitmapper.h": "c"
     }
 }
