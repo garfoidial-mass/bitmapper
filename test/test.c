@@ -1,4 +1,3 @@
-#include <stdint.h>
 #include <stdio.h>
 
 #include "bitmapper/bitmapper.h"
@@ -12,7 +11,7 @@ int main(int argc, char* argv[])
 
     printf("started\n");
 
-    window = bm_init_window(200,200,640,480,(COLOR){0,0,0},"test window");
+    window = bm_init_window(200,200,640,480,(COLOR){0,0,0,255},"test window");
     printf("window created\n");
     
     FONT* testfont = bm_load_font(32,32,BM_LAYOUT_DEFAULT, "./Fonts/32X32-FD.png", window);
