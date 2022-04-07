@@ -27,4 +27,4 @@ You probably already know how to do this
     
 If all went well, you should get an output like this:
 !["Hello World", displayed in 2 goofy looking demoscene fonts](./test/test.png)
-Press the arrow keys and WASD to move the 2 different text layers, and use left shift and tab to turn on and off tinting of one of them
+Press the arrow keys and WASD to move the 2 different text layers, and use left shift and tab to turn on and off tinting of one of them.

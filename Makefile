@@ -15,7 +15,7 @@ lib:
 	ar rcs ./build/libbitmapper.a ./build/bitmapper.o
 
 test: lib
-	cc -std=gnu11 ./test/test.c -I./include -O2 -L./build -Wl,-Bstatic -lpthread -lbitmapper -Wl,-Bdynamic -lSDL2main -lSDL2 -o ./test/$(EXAMPLENAME)
+	cc -std=gnu11 ./test/test.c -I./include -O2 -L./build -lbitmapper -lSDL2main -lSDL2 -o ./test/$(EXAMPLENAME)
 
 clean:
 	rm -rf ./build

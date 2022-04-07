@@ -2,9 +2,9 @@
 
 #include "bitmapper.h"
 
-//Window functions
 
-WINDOW* bm_init_window(int x, int y, int width, int height, COLOR clearcolor , const char* title)
+
+WINDOW* bm_window_init(int x, int y, int width, int height, COLOR clearcolor , const char* title)
 {
     WINDOW* window = malloc(sizeof(WINDOW));
     window->quit = 0;
@@ -49,12 +49,14 @@ WINDOW* bm_init_window(int x, int y, int width, int height, COLOR clearcolor , c
     return window;
 }
 
-int bm_cleanup_window(WINDOW* window)
+
+
+int bm_window_cleanup(WINDOW* window)
 {
     printf("cleaning up\n");
     for(int x = 0; x < window->numlayers; x++)
     {
-        bm_remove_layer(&(window->layers[x]));
+        bm_layer_remove(&(window->layers[x]));
     }
     free(window->layers);
     free(window->keys);
@@ -63,7 +65,8 @@ int bm_cleanup_window(WINDOW* window)
     free(window);
 }
 
-int bm_process_window(WINDOW* window)
+
+int bm_window_process(WINDOW* window)
 {
     SDL_Event event;
 
@@ -95,36 +98,31 @@ int bm_process_window(WINDOW* window)
             break;
         }
     }
-    SDL_RenderPresent(window->renderer);
     SDL_Delay(16);
 }
 
-void bm_render_window(WINDOW* window)
+void bm_window_render(WINDOW* window)
 {
     for(int x = 0; x < window->numlayers; x++)
     {
-        bm_render_layer(&(window->layers[x]),window);
+        bm_layer_render(&(window->layers[x]),window);
     }
+    SDL_RenderPresent(window->renderer);
 }
 
-uint8_t bm_open_window(WINDOW* window)
+uint8_t bm_window_is_open(WINDOW* window)
 {
     return !window->quit;
 }
 
-void bm_clear_window(WINDOW* window)
+void bm_window_clear(WINDOW* window)
 {
     SDL_RenderClear(window->renderer);
 }
 
-int bm_getkey(KEY key, WINDOW* window)
-{
-    return window->keys[key];
-}
-
 //Layer functions
 
-LAYER* bm_add_layer(int x, int y,int w, int h, FONT* font, WINDOW* window)
+LAYER* bm_layer_add(int x, int y,int w, int h, FONT* font, WINDOW* window)
 {   
     window->numlayers += 1;
     window->layers = realloc(window->layers,sizeof(LAYER) * window->numlayers);
@@ -135,26 +133,27 @@ LAYER* bm_add_layer(int x, int y,int w, int h, FONT* font, WINDOW* window)
     return &(window->layers[window->numlayers-1]);
 }
 
-void bm_remove_layer(LAYER* layer)
+void bm_layer_remove(LAYER* layer)
 {
     SDL_DestroyTexture(layer->texture);
     free(layer->chars);
 }
 
-void bm_tint_layer(COLOR color, LAYER* layer,WINDOW* window)
+void bm_layer_tint(COLOR color, LAYER* layer,WINDOW* window)
 {
     layer->color = color;
     SDL_SetTextureColorMod(layer->texture,color.r,color.g,color.b);
-    bm_update_layer(layer,window);
+    SDL_SetTextureAlphaMod(layer->texture,color.a);
+    bm_layer_update(layer,window);
 }
 
-void bm_clear_layer(LAYER* layer,WINDOW* window)
+void bm_layer_clear(LAYER* layer,WINDOW* window)
 {
     memset(layer->chars,0,sizeof(BMCHAR)*layer->w*layer->h);
-    bm_update_layer(layer,window);
+    bm_layer_update(layer,window);
 }
 
-void bm_update_layer(LAYER* layer,WINDOW* window)
+void bm_layer_update(LAYER* layer,WINDOW* window)
 {
     SDL_SetRenderTarget(window->renderer,layer->texture);
     COLOR color;
@@ -180,7 +179,7 @@ void bm_update_layer(LAYER* layer,WINDOW* window)
     SDL_SetRenderDrawColor(window->renderer,color.r,color.g,color.b,color.a);
 }
 
-void bm_render_layer(LAYER* layer,WINDOW* window)
+void bm_layer_render(LAYER* layer,WINDOW* window)
 {
     int w,h;
     SDL_QueryTexture(layer->texture,NULL,NULL,&w,&h);
@@ -188,7 +187,7 @@ void bm_render_layer(LAYER* layer,WINDOW* window)
 }
 
 //Font functions
-FONT* bm_load_font(int w, int h, const char* layout, const char* filepath, WINDOW* window)
+FONT* bm_font_load(int w, int h, const char* layout, const char* filepath, WINDOW* window)
 {
     //couldn't get SDL_Image to work lmao
     int req_format = STBI_rgb_alpha;
@@ -256,7 +255,7 @@ FONT* bm_load_font(int w, int h, const char* layout, const char* filepath, WINDO
     return font;
 }
 
-void bm_destroy_font(FONT* font){
+void bm_font_destroy(FONT* font){
     SDL_DestroyTexture(font->image);
     BMCHAR* c, *tmp;
     HASH_ITER(hh, font->chars,c,tmp){
@@ -266,7 +265,7 @@ void bm_destroy_font(FONT* font){
 }
 
 
-//displaying functions
+//## Other Functions
 void bm_putchar(char c, int x, int y, LAYER* layer, WINDOW* window)
 {
     int index = x+(y*layer->w);
@@ -286,5 +285,10 @@ void bm_print(char* s,int x, int y,LAYER* layer, WINDOW* window)
     {
         bm_putchar(s[z],x+z,y,layer,window);
     }
-    bm_update_layer(layer,window);
+    bm_layer_update(layer,window);
+}
+
+int bm_getkey(KEY key, WINDOW* window)
+{
+    return window->keys[key];
 }
